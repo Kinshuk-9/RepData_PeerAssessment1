@@ -1,0 +1,98 @@
+---
+title: "Reproducible Research Course Project 1"
+author: "Kinshuk"
+date: "30/07/2020"
+output: html_document
+---
+
+### Course Project 1
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+Unzipping the data-set and then reading it.
+```{r}
+unzip('repdata_data_activity.zip')
+data <- read.csv('activity.csv')
+```
+
+Calculating the total number of steps taken per day
+```{r}
+total_steps_per_day <- with(data, tapply(steps, date, sum, na.rm=TRUE))
+mean(total_steps_per_day)
+```
+
+Histogram for total number of steps taken per day
+```{r}
+Total_Steps <- data.frame(Date = names(total_steps_per_day), Steps = total_steps_per_day)
+hist(Total_Steps$Steps, xlab = 'Total Steps taken', main = 'Total number of steps taken per day', col = 'chartreuse')
+```
+
+Median of total number of steps taken per day
+```{r}
+median(total_steps_per_day)
+```
+
+Time series plot for 5-minute interval and the average number of steps taken, averaged across all days.
+```{r}
+temp_data <- with(data, tapply(steps,interval, mean, na.rm = TRUE))
+av_steps_by_interval <- data.frame(Interval = names(temp_data), Mean_Steps = temp_data)
+plot(av_steps_by_interval$Interval, av_steps_by_interval$Mean_Steps, type = 'l', xlab = 'Interval', ylab='Mean Steps', main = 'Mean Steps taken for intervals averaged for each day', col = 'steelblue')
+```
+
+5-minute interval, on average across all the days in the dataset, containing the maximum number of steps
+```{r}
+av_steps_by_interval$Interval[which.max(av_steps_by_interval$Mean_Steps)]
+```
+
+Total number of rows with missing values.
+```{r}
+sum(is.na(data$steps))
+```
+
+Filling the missing values by the mean value for that interval and creating a newdataset
+```{r}
+new_data <- data
+j <- nrow(new_data)
+for(i in 1:j)
+{
+  if(is.na(new_data[i,'steps']))
+  {
+    if(is.na(new_data[i,'steps'])) new_data[i,'steps']= av_steps_by_interval$Mean_Steps[new_data[i,'interval']==av_steps_by_interval$Interval]
+  }
+}
+```
+
+ Mean, Median and Histogram of the total number of steps taken each day
+
+```{r}
+new_total_steps_per_day <- with(new_data, tapply(steps, date, sum))
+mean(new_total_steps_per_day)
+median(new_total_steps_per_day)
+New_Total_Steps <-  data.frame(Date = names(new_total_steps_per_day), Steps = new_total_steps_per_day)
+hist(New_Total_Steps$Steps, xlab = 'Steps taken each day', main = 'Total number of steps taken each day', col = 'goldenrod')
+```
+
+
+Creating a new column for weekday/weekend
+```{r}
+new_data$date <- as.Date(new_data$date)
+new_data$day <- weekdays(new_data$date)
+new_data$isweekend <- new_data$day=='Saturday'|new_data$day == 'Sunday'
+```
+
+Time series plot of the 5-minute interval and the average number of steps taken, averaged across all weekday days or weekend days
+```{r}
+av_steps_by_int_week <- with(new_data, tapply(steps, list(isweekend,interval), mean))
+library(reshape2)
+library(ggplot2)
+av_steps_by_interval_weekend <- melt(av_steps_by_int_week)
+colnames(av_steps_by_interval_weekend) <- c('Isweekend','Interval','Steps')
+av_steps_by_interval_weekend$Isweekend <-  gsub('FALSE','Weekday',av_steps_by_interval_weekend$Isweekend)
+av_steps_by_interval_weekend$Isweekend <-  gsub('TRUE','Weekend',av_steps_by_interval_weekend$Isweekend)
+plot <- ggplot(data = av_steps_by_interval_weekend, aes(x = Interval, y = Steps, group = Isweekend))+ geom_line(linetype = 'solid', color = 'steelblue', size = 1) + facet_wrap(.~Isweekend, nrow = 2, ncol = 1) + labs(title = 'Mean total steps by weekday pr weekend')
+print(plot)
+```
+
